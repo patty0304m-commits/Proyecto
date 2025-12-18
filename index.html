@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Learn English</title>
+<style>
+  :root{
+    --bg:#0e0f17; --panel:#161824; --ink:#f4f7ff; --muted:#b7bdde;
+    --accent:#57d2ff; --ok:#2bd47c; --bad:#ff5f7a; --warn:#ffd46b;
+    --piece:#5a7dfa; --piece-dark:#405bcc; --edge:#314079;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0e0f17;color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  header{padding:1rem;text-align:center;background:#14172a;border-bottom:1px solid #222743}
+  header h1{margin:.2rem 0;font-size:clamp(1.4rem,3vw,2.2rem)}
+  header p{margin:0;color:var(--muted)}
+  main{max-width:1100px;margin:1rem auto;padding:0 1rem}
+  .screen{background:var(--panel);border:1px solid #222743;border-radius:1rem;padding:1rem;margin-bottom:1rem}
+  h2{margin:.25rem 0 .75rem;font-size:1.4rem}
+  .row{display:flex;gap:.6rem;flex-wrap:wrap}
+  button{
+    background:linear-gradient(180deg,#66d7ff,#3fbaf0); color:#06263a; border:none; border-radius:.6rem;
+    padding:.6rem 1rem; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(63,186,240,.25);
+  }
+  button.secondary{background:linear-gradient(180deg,#bfc8ff,#8aa1ff); color:#0e1847}
+  button:disabled{opacity:.5; cursor:not-allowed}
+  .hint{color:var(--muted); font-size:.9rem}
+  .hidden{display:none}
+
+  /* Nivel 1 */
+  #gameCanvas{background:linear-gradient(180deg,#0a0c18,#0f1325); border-radius:.8rem; border:1px solid #222743; display:block; margin:0 auto}
+  .hud{display:flex; justify-content:space-between; align-items:center; margin-top:.5rem}
+  .legend{display:flex; gap:.4rem; flex-wrap:wrap}
+  .tag{display:inline-block; font-size:.85rem; color:var(--muted); border:1px solid #222743; padding:.2rem .5rem; border-radius:.4rem}
+  .tag.ok{color:var(--ok); border-color:rgba(43,212,124,.5)}
+  .tag.bad{color:var(--bad); border-color:rgba(255,95,122,.5)}
+  .sentenceBar{margin:.4rem auto; text-align:center; color:#ffd46b; font-weight:800}
+
+  /* Nivel 2 */
+  #puzzleArea{display:flex; flex-direction:column; gap:.75rem}
+  .puzzle-row{display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center}
+  .piece{
+    background:linear-gradient(135deg,var(--piece),var(--piece-dark));
+    color:#fff; padding:.5rem .75rem; border-radius:.6rem; cursor:grab; user-select:none; position:relative;
+    box-shadow:0 6px 12px rgba(90,125,250,.25); border:2px solid var(--edge);
+  }
+  .checker{display:flex; gap:.5rem; align-items:center; justify-content:center; margin-top:.5rem}
+  .result{font-weight:700}
+  .result.ok{color:var(--ok)} .result.bad{color:var(--bad)}
+
+  /* Nivel 3 */
+  #court{position:relative; width:700px; max-width:100%; height:420px; margin:0 auto; border-radius:1rem; overflow:hidden;
+    background:
+      radial-gradient(200px 100px at 85% 35%, rgba(255,255,255,.08), transparent 60%),
+      linear-gradient(180deg,#1f2a3f,#162138);
+    border:1px solid #222743;
+  }
+  #court::before{
+    content:""; position:absolute; inset:0; background:
+      radial-gradient(120px 60px at 85% 55%, rgba(255,255,255,.25), rgba(255,255,255,0) 70%),
+      linear-gradient(transparent 290px, rgba(255,255,255,.18) 290px, rgba(255,255,255,.18) 294px, transparent 294px),
+      radial-gradient(90px 90px at 85% 60%, rgba(255,255,255,.18), rgba(255,255,255,0) 60%);
+    pointer-events:none;
+  }
+  .hoop{position:absolute; right:6%; top:20%; width:90px; height:12px; background:linear-gradient(180deg,#ff784d,#ff3c3c); border-radius:6px;}
+  .backboard{position:absolute; right:3%; top:12%; width:18px; height:90px; background:#eee; border:2px solid #ddd; box-shadow:0 0 0 3px #c8c8c8 inset;}
+  .scrambleTag{
+    position:absolute; left:2%; top:4%; background:#243055; border:1px solid #32406f; color:#dbe3ff;
+    padding:.35rem .6rem; border-radius:.5rem; font-weight:700; letter-spacing:.5px;
+  }
+  .controls{display:flex; gap:.5rem; justify-content:center; margin:.75rem 0}
+  .controls input{
+    background:#0f1427; border:1px solid #2a3662; color:#cfe3ff; padding:.5rem .6rem; border-radius:.5rem; min-width:240px;
+  }
+  .controls button{background:linear-gradient(180deg,#ffa64d,#ff7a1f); color:#311400}
+  .win{ text-align:center; font-size:1.3rem; font-weight:800; color:#ffd46b; margin-top:.75rem }
+  .confetti{position:fixed; inset:0; pointer-events:none}
+  .confetti span{ position:absolute; width:10px; height:16px; transform:translateY(-100%); animation:drop 2.2s ease-in infinite; }
+  @keyframes drop{ 0%{transform:translateY(-120%) rotate(0deg)} 100%{transform:translateY(120vh) rotate(360deg)} }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Learning English</h1>
+    <p>Nivel 1: dispara al verbo correcto según (+) o (–). Nivel 2: ordena preguntas. Nivel 3: baloncesto de anagramas.</p>
+  </header>
+
+  <main>
+    <!-- NIVEL 1 -->
+    <section id="level1" class="screen">
+      <h2>Nivel 1 — Dispara al verbo correcto</h2>
+      <div class="sentenceBar" id="sentenceBar">Frase</div>
+      <canvas id="gameCanvas" width="900" height="460" aria-label="Shooter educativo"></canvas>
+      <div class="hud">
+        <div class="legend">
+          <span class="tag">Sujetos: They, He, You, I, She, It, We</span>
+          <span class="tag ok">(+): was / were</span>
+          <span class="tag bad">(–): wasn’t / weren’t</span>
+        </div>
+        <div class="row">
+          <button id="restart1" class="secondary">Reiniciar nivel 1</button>
+          <span class="hint">← → mover | Espacio disparar</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- NIVEL 2 -->
+    <section id="level2" class="screen hidden">
+      <h2>Nivel 2 — Ordena las preguntas (rompecabezas)</h2>
+      <p class="hint">Arrastra las piezas para formar 5 preguntas. Presiona “Revisar respuestas”. Si hay errores, se reinicia el nivel.</p>
+      <div id="puzzleArea"></div>
+      <div class="checker">
+        <button id="checkPuzzle">Revisar respuestas</button>
+        <button id="restart2" class="secondary">Reiniciar nivel 2</button>
+        <span id="puzzleResult" class="result"></span>
+      </div>
+    </section>
+
+    <!-- NIVEL 3 -->
+    <section id="level3" class="screen hidden">
+      <h2>Nivel 3 — Baloncesto de palabras</h2>
+      <p class="hint">Escribe la palabra correcta y presiona “Tirar”. Completa todas para ganar.</p>
+      <div id="court">
+        <div class="backboard"></div>
+        <div class="hoop"></div>
+        <span class="scrambleTag" id="scrambleTag">anagrama</span>
+      </div>
+      <div class="controls">
+        <input id="answerInput" type="text" autocomplete="off" placeholder="Escribe aquí la palabra" />
+        <button id="shootBtn">Tirar</button>
+        <button id="restart3" class="secondary">Reiniciar nivel 3</button>
+      </div>
+      <div id="progress3" class="hint"></div>
+      <div id="winMsg" class="win hidden">¡Ganaste! Nivel 3 completado 🎉</div>
+    </section>
+  </main>
+
+  <div id="confetti" class="confetti hidden" aria-hidden="true"></div>
+
+<script>
+/* ===== Navegación de niveles ===== */
+function showLevel(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+/* ===== NIVEL 1: SHOOTER con (+)/(–) ===== */
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const sentenceBar = document.getElementById('sentenceBar');
+
+  // Cada entrada: sujeto, frase con hueco y polaridad (+ / –)
+  const entries = [
+    { subj:"They", sent:"They ___ playing soccer. (+)", pol:"pos" },
+    { subj:"He",   sent:"He ___ reading a book. (–)", pol:"neg" },
+    { subj:"You",  sent:"You ___ studying English. (+)", pol:"pos" },
+    { subj:"I",    sent:"I ___ swimming in the pool. (–)", pol:"neg" },
+    { subj:"She",  sent:"She ___ cooking dinner. (+)", pol:"pos" },
+    { subj:"It",   sent:"It ___ raining yesterday. (–)", pol:"neg" },
+    { subj:"We",   sent:"We ___ watching TV. (+)", pol:"pos" },
+  ];
+
+  const state = {
+    idx: 0,
+    x: canvas.width/2,
+    bullets: [],
+    targets: []
+  };
+
+  function isSingular(subj){ return ["He","She","It","I"].includes(subj); }
+
+  function correctVerb(subj, pol){
+    if(pol==="pos") return isSingular(subj) ? "was" : "were";
+    return isSingular(subj) ? "wasn't" : "weren't";
+  }
+
+  function spawnTargets(){
+    const verbs = ["was","were","wasn't","weren't"];
+    const spacing = canvas.width / (verbs.length + 1);
+    const {subj, pol} = entries[state.idx];
+    const correct = correctVerb(subj, pol);
+    state.targets = verbs.map((v,i)=>({
+      x: spacing*(i+1)-40,
+      y: 110 + ((i%2)*40),
+      w: 90, h: 38,
+      text: v,
+      correct: v===correct,
+      hit:false
+    }));
+    sentenceBar.textContent = entries[state.idx].sent;
+  }
+
+  function drawBg(){
+    const grd = ctx.createLinearGradient(0,0,0,canvas.height);
+    grd.addColorStop(0,"#0a0c18"); grd.addColorStop(1,"#0f1325");
+    ctx.fillStyle = grd; ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
+  function drawSubject(){
+    const subj = entries[state.idx].subj;
+    ctx.fillStyle = "#59f2ff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 24px system-ui";
+    ctx.fillText(subj, state.x, canvas.height-70);
+    ctx.fillStyle = "#36d3ff";
+    ctx.fillRect(state.x-30, canvas.height-50, 60, 10);
+    ctx.fillStyle = "#0bd";
+    ctx.fillRect(state.x-15, canvas.height-60, 30, 10);
+  }
+
+  function roundRect(ctx, x, y, w, h, r, fill, stroke){
+    if(w<2*r) r = w/2; if(h<2*r) r = h/2;
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+    if(fill) ctx.fill(); if(stroke) ctx.stroke();
+  }
+
+  function drawTargets(){
+    state.targets.forEach(t=>{
+      ctx.fillStyle = "#1a2242";
+      ctx.strokeStyle = "#3a4e9a";
+      ctx.lineWidth = 2;
+      roundRect(ctx, t.x, t.y, t.w, t.h, 10, true, true);
+      ctx.fillStyle = "#dce6ff";
+      ctx.textAlign = "center";
+      ctx.font = "bold 18px system-ui";
+      ctx.fillText(t.text, t.x + t.w/2, t.y + t.h/2 + 6);
+    });
+  }
+
+  function drawBullets(){
+    ctx.fillStyle = "#ffd46b";
+    state.bullets.forEach(b=>{
+      ctx.fillRect(b.x-2, b.y-10, 4, 10);
+      b.y -= 8;
+    });
+    state.bullets = state.bullets.filter(b=>b.y>0);
+  }
+
+  function collide(b, t){
+    return b.x >= t.x && b.x <= t.x + t.w && b.y <= t.y + t.h && b.y >= t.y;
+  }
+
+  function handleCollisions(){
+    for(let b of state.bullets){
+      for(let t of state.targets){
+        if(!t.hit && collide(b,t)){
+          if(t.correct){
+            t.hit = true;
+            // Completar frase visualmente (barra superior)
+            const {subj, pol} = entries[state.idx];
+            const verb = correctVerb(subj, pol);
+            sentenceBar.textContent = entries[state.idx].sent.replace("___", verb);
+            // Avanzar al siguiente sujeto
+            setTimeout(()=>{
+              state.idx++;
+              if(state.idx >= entries.length){
+                showLevel('level2');
+              } else {
+                state.bullets = [];
+                spawnTargets();
+              }
+            }, 300);
+          } else {
+            alert("Incorrecto para esta frase. Reiniciando Nivel 1.");
+            restart1();
+          }
+        }
+      }
+    }
+  }
+
+  function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawBg();
+    drawSubject();
+    drawTargets();
+    drawBullets();
+    handleCollisions();
+    requestAnimationFrame(update);
+  }
+
+  document.addEventListener('keydown',(e)=>{
+    if(document.getElementById('level1').classList.contains('hidden')) return;
+    if(e.key === 'ArrowLeft'){ state.x = Math.max(60, state.x-20); }
+    if(e.key === 'ArrowRight'){ state.x = Math.min(canvas.width-60, state.x+20); }
+    if(e.key === ' '){
+      state.bullets.push({x:state.x, y:canvas.height-70});
+    }
+  });
+
+  function restart1(){
+    state.idx = 0;
+    state.bullets = [];
+    spawnTargets();
+  }
+  document.getElementById('restart1').addEventListener('click', restart1);
+
+  // init
+  spawnTargets();
+  update();
+})();
+
+/* ===== NIVEL 2: PUZZLE DE PREGUNTAS ===== */
+(() => {
+  const puzzleArea = document.getElementById('puzzleArea');
+  const checkBtn = document.getElementById('checkPuzzle');
+  const restartBtn = document.getElementById('restart2');
+  const result = document.getElementById('puzzleResult');
+
+  const targets = [
+    ["Were","you","waiting","for","the","bus","?"],
+    ["Was","he","playing","video","games","?"],
+    ["Were","they","watching","the","match","?"],
+    ["Who","were","you","talking","to","?"],
+    ["Why","was","she","running","away","?"]
+  ];
+
+  function initPuzzle(){
+    puzzleArea.innerHTML = "";
+    targets.forEach(words=>{
+      const row = document.createElement('div');
+      row.className = 'puzzle-row';
+      [...words].sort(()=>Math.random()-0.5).forEach(w=>{
+        const piece = document.createElement('div');
+        piece.className = 'piece';
+        piece.draggable = true;
+        piece.textContent = w;
+        row.appendChild(piece);
+      });
+      puzzleArea.appendChild(row);
+    });
+    result.textContent = "";
+    result.className = "result";
+  }
+
+  let dragSrc = null;
+  puzzleArea.addEventListener('dragstart',(e)=>{
+    if(e.target.classList.contains('piece')){
+      dragSrc = e.target;
+      e.dataTransfer.setData('text/plain', e.target.textContent);
+    }
+  });
+  puzzleArea.addEventListener('dragover',(e)=>{ e.preventDefault(); });
+  puzzleArea.addEventListener('drop',(e)=>{
+    e.preventDefault();
+    const tgt = e.target.closest('.piece');
+    if(dragSrc && tgt && dragSrc !== tgt){
+      const a = dragSrc.textContent;
+      dragSrc.textContent = tgt.textContent;
+      tgt.textContent = a;
+    }
+    dragSrc = null;
+  });
+
+  function checkPuzzle(){
+    const rows = [...puzzleArea.querySelectorAll('.puzzle-row')];
+    let allCorrect = true;
+    rows.forEach((row, i)=>{
+      const words = [...row.querySelectorAll('.piece')].map(p=>p.textContent);
+      if(words.join(" ") !== targets[i].join(" ")) allCorrect = false;
+    });
+    if(allCorrect){
+      result.textContent = "¡Perfecto! Avanzas al Nivel 3.";
+      result.className = "result ok";
+      setTimeout(()=>showLevel('level3'), 700);
+    } else {
+      alert("Hay errores. Reiniciando sólo el Nivel 2.");
+      initPuzzle();
+      result.textContent = "Se reinició el nivel.";
+      result.className = "result bad";
+    }
+  }
+
+  checkBtn.addEventListener('click', checkPuzzle);
+  restartBtn.addEventListener('click', initPuzzle);
+
+  initPuzzle();
+})();
+
+/* ===== NIVEL 3: BALONCESTO DE PALABRAS ===== */
+(() => {
+  const court = document.getElementById('court');
+  const scrambleTag = document.getElementById('scrambleTag');
+  const input = document.getElementById('answerInput');
+  const shootBtn = document.getElementById('shootBtn');
+  const restartBtn = document.getElementById('restart3');
+  const progress = document.getElementById('progress3');
+  const winMsg = document.getElementById('winMsg');
+  const confetti = document.getElementById('confetti');
+
+  const words = [
+    {scramble:"ylza", answer:"lazy"},
+    {scramble:"dyinerf", answer:"friendly"},
+    {scramble:"trams", answer:"smart"},
+    {scramble:"grotns", answer:"strong"},
+    {scramble:"gamiazn", answer:"amazing"},
+    {scramble:"nuyfn", answer:"funny"},
+    {scramble:"dink", answer:"kind"},
+    {scramble:"varbe", answer:"brave"},
+  ];
+  let idx = 0;
+
+  function setWord(i){
+    scrambleTag.textContent = words[i].scramble;
+    input.value = "";
+    progress.textContent = `Palabra ${i+1} de ${words.length}`;
+  }
+
+  function makeBall(){
+    const ball = document.createElement('div');
+    ball.style.position = 'absolute';
+    ball.style.width = '26px';
+    ball.style.height = '26px';
+    ball.style.borderRadius = '50%';
+    ball.style.background = 'radial-gradient(circle at 30% 30%, #ffb066, #ff8a1f 60%, #cf6407)';
+    ball.style.boxShadow = '0 6px 16px rgba(255,140,40,.35)';
+    ball.style.left = (court.getBoundingClientRect().width*0.12) + 'px';
+    ball.style.top  = (court.getBoundingClientRect().height*0.88) + 'px';
+    court.appendChild(ball);
+    return ball;
+  }
+
+  function animateShot(success, onEnd){
+    const ball = makeBall();
+    const rect = court.getBoundingClientRect();
+    const hoopX = rect.width * 0.92;
+    const hoopY = rect.height * 0.28;
+    let x = rect.width*0.12, y = rect.height*0.88;
+
+    const timer = setInterval(()=>{
+      x += (hoopX - x)*0.15;
+      y += (hoopY - y)*0.15;
+      ball.style.left = x+"px";
+      ball.style.top = y+"px";
+      if(Math.hypot(x-hoopX, y-hoopY) < 4){
+        clearInterval(timer);
+        if(success){
+          ball.style.transition = "transform .5s ease-in";
+          ball.style.transform = "translate(30px,60px)";
+        } else {
+          ball.style.transition = "transform .6s ease-in";
+          ball.style.transform = "translate(60px,-40px)";
+        }
+        setTimeout(()=>{ ball.remove(); onEnd && onEnd(); }, 600);
+      }
+    }, 35);
+  }
+
+  function throwShot(){
+    const ans = input.value.trim().toLowerCase();
+    if(!ans) return;
+    const correct = ans === words[idx].answer;
+    animateShot(correct, ()=>{
+      if(correct){
+        idx++;
+        if(idx >= words.length){
+          winMsg.classList.remove('hidden');
+          launchConfetti();
+        } else {
+          setWord(idx);
+        }
+      }
+    });
+  }
+
+  function restartLevel3(){
+    idx = 0;
+    winMsg.classList.add('hidden');
+    confetti.classList.add('hidden'); confetti.innerHTML = "";
+    setWord(idx);
+  }
+
+  shootBtn.addEventListener('click', throwShot);
+  input.addEventListener('keydown',(e)=>{ if(e.key==='Enter') throwShot(); });
+  restartBtn.addEventListener('click', restartLevel3);
+
+  function launchConfetti(){
+    confetti.classList.remove('hidden');
+    confetti.innerHTML = "";
+    const colors = ["#ff5f7a","#ffd46b","#57d2ff","#2bd47c","#b07cff"];
+    for(let i=0;i<120;i++){
+      const s = document.createElement('span');
+      s.style.left = Math.random()*100+"vw";
+      s.style.background = colors[i%colors.length];
+      s.style.animationDelay = Math.random()*1.5+"s";
+      confetti.appendChild(s);
+    }
+  }
+
+  setWord(idx);
+})();
+
+// start at level 1
+showLevel('level1');
+</script>
+</body>
+</html>
